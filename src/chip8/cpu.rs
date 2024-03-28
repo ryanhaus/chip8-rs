@@ -225,12 +225,12 @@ impl super::Chip8 {
     }
 
     // evaluates a CPUInstrTarget immutably
-    pub fn evaluate_cpu_instr_target(&self, target: CPUInstrTarget) -> usize {
+    pub fn evaluate_cpu_instr_target(&self, target: &CPUInstrTarget) -> usize {
         match target {
             CPUInstrTarget::IRegister => self.registers.get_i_register().clone() as usize,
-            CPUInstrTarget::VRegister(reg) => self.registers.get_v_register(reg).clone() as usize,
-            CPUInstrTarget::MemoryAddress(addr) => self.memory.get_memory_at(addr).clone() as usize,
-            CPUInstrTarget::Constant(val) => val as usize,
+            CPUInstrTarget::VRegister(reg) => self.registers.get_v_register(*reg).clone() as usize,
+            CPUInstrTarget::MemoryAddress(addr) => self.memory.get_memory_at(*addr).clone() as usize,
+            CPUInstrTarget::Constant(val) => *val as usize,
             CPUInstrTarget::CurrentKeyPressed => todo!(),
             CPUInstrTarget::CurrentDelayTimer => todo!(),
             CPUInstrTarget::CurrentSoundTimer => todo!(),
@@ -261,35 +261,70 @@ impl super::Chip8 {
             // clear display
             CPUInstruction::ClearDisplay => todo!(),
 
-            // returns from subroutine
-            CPUInstruction::Return => todo!(),
+            // returns from subroutine by popping return address from stack and jumping there
+            CPUInstruction::Return => {
+                let return_address = self.memory.pop_from_stack_u16();
+                self.registers.jump_to(return_address);
+            },
 
             // jumps (sets PC) to given address
             CPUInstruction::Jump { addr } => {
-                let addr = self.evaluate_cpu_instr_target(addr);
-
-                *self.registers.get_pc_register_mut() = addr as u16;
+                let addr = self.evaluate_cpu_instr_target(&addr);
+                self.registers.jump_to(addr as u16);
             }
 
-            // calls subroutine at given address
-            CPUInstruction::CallSubroutine { addr } => todo!(),
+            // calls subroutine at given address by pushing current PC to stack and jumping to subroutine addr
+            CPUInstruction::CallSubroutine { addr } => {
+                let current_pc = self.registers.get_pc_register().clone();
+                self.memory.push_to_stack_u16(current_pc);
+
+                let jump_addr = self.evaluate_cpu_instr_target(&addr);
+                self.registers.jump_to(jump_addr as u16);
+            },
 
             // compares the two given arguments, if eq is true, skip the next instruction if they are equal (do nothing if not). if eq is false, skip the next instruction if they are not equal (do nothing if equal)
-            CPUInstruction::CompareEq { eq, left, right } => todo!(),
+            CPUInstruction::CompareEq { eq, left, right } => {
+                let left_val = self.evaluate_cpu_instr_target(&left);
+                let right_val = self.evaluate_cpu_instr_target(&right);
+
+                let skip = if eq { left_val == right_val } else { left_val != right_val };
+
+                if skip {
+                    self.registers.skip_next_instr();
+                }
+            },
 
             // assigns a given value to a given target
             CPUInstruction::Assignment { to, from } => {
-                let from_val = self.evaluate_cpu_instr_target(from);
+                let from_val = self.evaluate_cpu_instr_target(&from);
                 self.set_cpu_instr_target(to, from_val);
             }
 
             // performs an ALU operation
-            CPUInstruction::ALUOperation { op, left, right } => todo!(),
+            CPUInstruction::ALUOperation { op, left, right } => {
+                let left_val = self.evaluate_cpu_instr_target(&left);
+                let right_val = self.evaluate_cpu_instr_target(&right);
+
+                let result = match op {
+                    ALUOperations::Assign => right_val,
+                    ALUOperations::Add => left_val + right_val,
+                    ALUOperations::Subtract => left_val - right_val,
+                    ALUOperations::SubtractFlipped => right_val - left_val,
+                    ALUOperations::Or => left_val | right_val,
+                    ALUOperations::And => left_val & right_val,
+                    ALUOperations::Xor => left_val ^ right_val,
+                    ALUOperations::ShiftRight => left_val >> 1,
+                    ALUOperations::ShiftLeft => left_val << 1,
+                    ALUOperations::Unknown => todo!(),
+                };
+
+                self.set_cpu_instr_target(left, result);
+            },
 
             // performs a "special jump": sets PC to V0 + a given number
             CPUInstruction::SpecialJump { offset } => {
                 let v0_val = self.registers.get_v_register(0).clone() as usize;
-                let offset_val = self.evaluate_cpu_instr_target(offset);
+                let offset_val = self.evaluate_cpu_instr_target(&offset);
 
                 *self.registers.get_pc_register_mut() = (v0_val + offset_val) as u16;
             }

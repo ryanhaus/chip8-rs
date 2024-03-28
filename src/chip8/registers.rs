@@ -44,4 +44,14 @@ impl Chip8Registers {
     pub fn get_pc_register_mut(&mut self) -> &mut u16 {
         &mut self.pc
     }
+
+    // makes jumping easier
+    pub fn jump_to(&mut self, addr: u16) {
+        *self.get_pc_register_mut() = addr;
+    }
+
+    // skips the next instruction by increasing pc by 2
+    pub fn skip_next_instr(&mut self) {
+        *self.get_pc_register_mut() += 2;
+    }
 }

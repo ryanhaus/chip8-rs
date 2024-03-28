@@ -9,7 +9,7 @@ impl Chip8Memory {
     pub fn new() -> Chip8Memory {
         Chip8Memory {
             mem: [0; 4096],
-            stack_ptr: 0,
+            stack_ptr: 0x0EFF,
         }
     }
 
@@ -42,6 +42,36 @@ impl Chip8Memory {
             });
     }
 
-    // pushes a value to the stack
-    // pops a value from the stack
+    // pushes an 8-bit value to the stack
+    pub fn push_to_stack_u8(&mut self, val: u8) {
+        *self.get_memory_at_mut(self.stack_ptr as usize) = val;
+        self.stack_ptr += 1;
+    }
+
+    // pushes a 16-bit value to the stack (higher byte first, lower byte second)
+    pub fn push_to_stack_u16(&mut self, val: u16) {
+        // separate bytes
+        let higher = ((val & 0xFF00) >> 8) as u8;
+        let lower = (val & 0x00FF) as u8;
+
+        // push to stack
+        self.push_to_stack_u8(higher);
+        self.push_to_stack_u8(lower);
+    }
+
+    // pops an 8-bit value from the stack
+    pub fn pop_from_stack_u8(&mut self) -> u8 {
+        self.stack_ptr += 1;
+        self.get_memory_at(self.stack_ptr as usize).clone()
+    }
+
+    // pops a 16-bit value from the satck (lower byte first, higher byte second)
+    pub fn pop_from_stack_u16(&mut self) -> u16 {
+        // pop the bytes and convert to 16-bit for proceeding arithmetic
+        let lower = self.pop_from_stack_u8() as u16;
+        let higher = self.pop_from_stack_u8() as u16;
+
+        // combine the bytes
+        (higher << 8) + lower
+    }
 }
