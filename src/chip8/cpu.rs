@@ -1,3 +1,6 @@
+use super::Chip8;
+use super::sprites::Chip8Sprite;
+
 // "targets" of a CPU instruction. can be read from for an operation or written to
 #[derive(Debug)]
 pub enum CPUInstrTarget {
@@ -69,19 +72,19 @@ impl super::Chip8 {
 
                     // 0xNNN = call machine code at NNN
                     _ => CPUInstruction::CallMachineCode {
-                        addr: CPUInstrTarget::MemoryAddress(instruction_operands as usize),
+                        addr: CPUInstrTarget::Constant(instruction_operands),
                     }
                 }
             },
 
             // 0x1NNN: jumps to address 0xNNN
             0x1 => CPUInstruction::Jump {
-                addr: CPUInstrTarget::MemoryAddress(instruction_operands as usize),
+                addr: CPUInstrTarget::Constant(instruction_operands),
             },
 
             // 0x2NNN: calls subroutine at address 0xNNN
             0x2 => CPUInstruction::CallSubroutine {
-                addr: CPUInstrTarget::MemoryAddress(instruction_operands as usize),
+                addr: CPUInstrTarget::Constant(instruction_operands),
             },
 
             // 0x(3/4)NNN: checks if Vx (=/!)= NN
@@ -259,7 +262,7 @@ impl super::Chip8 {
             CPUInstruction::CallMachineCode { addr } => todo!(),
 
             // clear display
-            CPUInstruction::ClearDisplay => todo!(),
+            CPUInstruction::ClearDisplay => self.output.clear_display(),
 
             // returns from subroutine by popping return address from stack and jumping there
             CPUInstruction::Return => {
@@ -329,8 +332,23 @@ impl super::Chip8 {
                 *self.registers.get_pc_register_mut() = (v0_val + offset_val) as u16;
             }
 
-            // draws a sprite to the screen at (Vx, Vy) with a height of N pixels
-            CPUInstruction::Draw { x_reg, y_reg, height_px } => todo!(),
+            // draws a sprite to the screen at (Vx, Vy) with a height of N pixels. VF gets set to 1 if any pixels were flipped from white to black, and 0 otherwise
+            CPUInstruction::Draw { x_reg, y_reg, height_px } => {
+                // evalulate instruction targets
+                let x_reg_val = self.evaluate_cpu_instr_target(&x_reg);
+                let y_reg_val = self.evaluate_cpu_instr_target(&y_reg);
+                let height_px_val = self.evaluate_cpu_instr_target(&height_px);
+
+                // create sprite instance
+                let i_reg_val = self.registers.get_i_register().clone() as usize;
+                let sprite = Chip8Sprite::new(&self.memory, i_reg_val, height_px_val);
+
+                // draw sprite
+                let new_vf_value = self.output.draw_sprite_on_display(x_reg_val, y_reg_val, sprite);
+
+                // update VF
+                *self.registers.get_v_register_mut(0xF) = if new_vf_value { 1 } else { 0 };
+            },
 
             // decomposes Vx into BCD at addresses I..I+2
             CPUInstruction::BCD { x_reg } => todo!(),
@@ -344,5 +362,22 @@ impl super::Chip8 {
             // unknown instruction
             CPUInstruction::Unknown { opcode } => todo!(),
         }
+    }
+
+    // executes the next instruction (instruction at PC)
+    pub fn execute_next_instruction(&mut self) {
+        // first, read the instruction opcode at PC and convert it into a CPUInstruction
+        let pc = self.registers.get_pc_register().clone() as usize;
+        let opcode = self.memory.get_memory_at_u16(pc);
+        let instruction = Chip8::opcode_to_instruction(opcode);
+
+        println!("{opcode:4X}: {instruction:?}");
+
+
+        // increase PC by 2 before executing next instruction as to not interfere with jumps
+        *self.registers.get_pc_register_mut() += 2;
+
+        // now, execute that instruction
+        self.execute_instruction(instruction);
     }
 }

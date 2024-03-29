@@ -1,5 +1,6 @@
 mod chip8;
-use std::fs;
+use std::thread;
+use std::time;
 
 fn main() {
 
@@ -10,11 +11,13 @@ fn main() {
         .map(|x| ((x[0] as u16) << 8) + (x[1] as u16))
         .collect::<Vec<_>>();
 
-    let c8 = chip8::Chip8::new(&program);
+    let mut c8 = chip8::Chip8::new(&program);
 
-    for opcode in program {
-        println!("{opcode:04X}: {:?}", chip8::Chip8::opcode_to_instruction(opcode));
+    //c8.output.print_display();
+
+    for i in 0..100 {
+        c8.execute_next_instruction();
     }
 
-    println!("{c8:?}");
+    c8.output.print_display()
 }

@@ -6,6 +6,7 @@ mod memory;
 mod output;
 mod registers;
 mod timers;
+mod sprites;
 
 use cpu::*;
 use input::*;
@@ -16,11 +17,11 @@ use timers::*;
 
 #[derive(Debug)]
 pub struct Chip8 {
-    memory: Chip8Memory,
-    registers: Chip8Registers,
-    timers: Chip8Timers,
-    output: Chip8Output,
-    input: Chip8Input,
+    pub memory: Chip8Memory,
+    pub registers: Chip8Registers,
+    pub timers: Chip8Timers,
+    pub output: Chip8Output,
+    pub input: Chip8Input,
 }
 
 impl Chip8 {

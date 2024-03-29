@@ -20,6 +20,15 @@ impl Chip8Memory {
         &self.mem[addr]
     }
 
+    // gets a specific memory address immutably, but as a 16-bit number (big-endian)
+    pub fn get_memory_at_u16(&self, addr: usize) -> u16 {
+        let higher = self.get_memory_at(addr).clone() as u16;
+        let lower = self.get_memory_at(addr + 1).clone() as u16;
+
+        // convert to 16bit using big endian
+        (higher << 8) + lower
+    }
+
     // gets a specific memory address mutably
     pub fn get_memory_at_mut(&mut self, addr: usize) -> &mut u8 {
         assert!(addr < 4096);
