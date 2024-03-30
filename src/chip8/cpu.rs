@@ -19,14 +19,14 @@ pub enum CPUInstrTarget {
 #[derive(Debug)]
 pub enum ALUOperations {
     Assign,
-    Add,
-    Subtract,
-    SubtractFlipped,
+    Add { update_vf: bool },
+    Subtract { update_vf: bool },
+    SubtractFlipped { update_vf: bool },
     Or,
     And,
     Xor,
-    ShiftRight,
-    ShiftLeft,
+    ShiftRight { update_vf: bool },
+    ShiftLeft { update_vf: bool },
     Unknown,
 }
 
@@ -40,7 +40,7 @@ pub enum CPUInstruction {
     CallSubroutine { addr: CPUInstrTarget, },
     CompareEq{ eq: bool, left: CPUInstrTarget, right: CPUInstrTarget, },
     Assignment { to: CPUInstrTarget, from: CPUInstrTarget, },
-    ALUOperation { op: ALUOperations, left: CPUInstrTarget, right: CPUInstrTarget, },
+    ALUOperation { op: ALUOperations, left: CPUInstrTarget, right: CPUInstrTarget },
     SpecialJump { offset: CPUInstrTarget },
     Draw { x_reg: CPUInstrTarget, y_reg: CPUInstrTarget, height_px: CPUInstrTarget, },
     BCD { x_reg: CPUInstrTarget },
@@ -109,7 +109,7 @@ impl super::Chip8 {
 
             // 0x7XNN: increases Vx by NN
             0x7 => CPUInstruction::ALUOperation {
-                op: ALUOperations::Add,
+                op: ALUOperations::Add { update_vf: false },
                 left: CPUInstrTarget::VRegister(instruction_operands_list[0] as usize),
                 right: CPUInstrTarget::Constant(instruction_operands & 0xFF),
             },
@@ -121,11 +121,11 @@ impl super::Chip8 {
                     0x1 => ALUOperations::Or,
                     0x2 => ALUOperations::And,
                     0x3 => ALUOperations::Xor,
-                    0x4 => ALUOperations::Add,
-                    0x5 => ALUOperations::Subtract,
-                    0x6 => ALUOperations::ShiftRight,
-                    0x7 => ALUOperations::SubtractFlipped,
-                    0xE => ALUOperations::ShiftLeft,
+                    0x4 => ALUOperations::Add { update_vf: true },
+                    0x5 => ALUOperations::Subtract { update_vf: true },
+                    0x6 => ALUOperations::ShiftRight { update_vf: true },
+                    0x7 => ALUOperations::SubtractFlipped { update_vf: true },
+                    0xE => ALUOperations::ShiftLeft { update_vf: true },
                     _ => ALUOperations::Unknown,
                 };
                 
@@ -192,7 +192,7 @@ impl super::Chip8 {
 
                     // 0xFX1E: increases I register by Vx
                     0x1E => CPUInstruction::ALUOperation {
-                        op: ALUOperations::Add,
+                        op: ALUOperations::Add { update_vf: false },
                         left: CPUInstrTarget::IRegister,
                         right: CPUInstrTarget::VRegister(instruction_operands_list[0] as usize),
                     },
@@ -210,12 +210,12 @@ impl super::Chip8 {
 
                     // 0xFX55: register dump V0..Vx to I..I+x
                     0x55 => CPUInstruction::RegisterDump {
-                        x: CPUInstrTarget::VRegister(instruction_operands_list[0] as usize),
+                        x: CPUInstrTarget::Constant(instruction_operands_list[0]),
                     },
 
                     // 0xFX65: register load V0..Vx from I..I+x
                     0x65 => CPUInstruction::RegisterLoad {
-                        x: CPUInstrTarget::VRegister(instruction_operands_list[0] as usize),
+                        x: CPUInstrTarget::Constant(instruction_operands_list[0]),
                     },
 
                     _ => CPUInstruction::Unknown { opcode }
@@ -237,7 +237,7 @@ impl super::Chip8 {
             CPUInstrTarget::CurrentKeyPressed => todo!(),
             CPUInstrTarget::CurrentDelayTimer => todo!(),
             CPUInstrTarget::CurrentSoundTimer => todo!(),
-            CPUInstrTarget::SpriteAddress(sprite) => todo!(),
+            CPUInstrTarget::SpriteAddress(sprite) => (self.registers.get_v_register(*sprite).clone() as usize * 5),
             CPUInstrTarget::RandomNum(mask) => todo!(),
         }
     }
@@ -305,23 +305,31 @@ impl super::Chip8 {
 
             // performs an ALU operation
             CPUInstruction::ALUOperation { op, left, right } => {
-                let left_val = self.evaluate_cpu_instr_target(&left);
-                let right_val = self.evaluate_cpu_instr_target(&right);
+                let left_val = self.evaluate_cpu_instr_target(&left) as isize;
+                let right_val = self.evaluate_cpu_instr_target(&right) as isize;
 
-                let result = match op {
-                    ALUOperations::Assign => right_val,
-                    ALUOperations::Add => left_val + right_val,
-                    ALUOperations::Subtract => left_val - right_val,
-                    ALUOperations::SubtractFlipped => right_val - left_val,
-                    ALUOperations::Or => left_val | right_val,
-                    ALUOperations::And => left_val & right_val,
-                    ALUOperations::Xor => left_val ^ right_val,
-                    ALUOperations::ShiftRight => left_val >> 1,
-                    ALUOperations::ShiftLeft => left_val << 1,
+                let (mut result, update_vf, new_vf) = match op {
+                    ALUOperations::Assign => (right_val, false, false),
+                    ALUOperations::Add { update_vf } => (left_val + right_val, update_vf, (left_val+right_val) > 0xFF),
+                    ALUOperations::Subtract { update_vf } => (left_val - right_val, update_vf, left_val >= right_val),
+                    ALUOperations::SubtractFlipped { update_vf } => (right_val - left_val, update_vf, right_val >= left_val),
+                    ALUOperations::Or => (left_val | right_val, false, false),
+                    ALUOperations::And => (left_val & right_val, false, false),
+                    ALUOperations::Xor => (left_val ^ right_val, false, false),
+                    ALUOperations::ShiftRight { update_vf } => (left_val >> 1, update_vf, (left_val & 1) == 1),
+                    ALUOperations::ShiftLeft { update_vf } => (left_val << 1, update_vf, (left_val & 0x80) > 0),
                     ALUOperations::Unknown => todo!(),
                 };
 
-                self.set_cpu_instr_target(left, result);
+                while result < 0 {
+                    result += 256;
+                }
+
+                self.set_cpu_instr_target(left, result as usize);
+
+                if update_vf {
+                    *self.registers.get_v_register_mut(0xF) = if new_vf { 1 } else { 0 };
+                }
             },
 
             // performs a "special jump": sets PC to V0 + a given number
@@ -351,13 +359,50 @@ impl super::Chip8 {
             },
 
             // decomposes Vx into BCD at addresses I..I+2
-            CPUInstruction::BCD { x_reg } => todo!(),
+            CPUInstruction::BCD { x_reg } => {
+                // extract digits
+                let mut x_reg_val = self.evaluate_cpu_instr_target(&x_reg);
+                let mut digits = [0; 3];
+                
+                for i in 0..3 {
+                    digits[i] = x_reg_val % 10;
+                    x_reg_val /= 10;
+                }
+
+                // write to memory
+                let i_reg_val = self.registers.get_i_register().clone() as usize;
+                *self.memory.get_memory_at_mut(i_reg_val) = digits[2] as u8;
+                *self.memory.get_memory_at_mut(i_reg_val + 1) = digits[1] as u8;
+                *self.memory.get_memory_at_mut(i_reg_val + 2) = digits[0] as u8;
+            },
 
             // dumps V0..Vx starting at address I
-            CPUInstruction::RegisterDump { x } => todo!(),
+            CPUInstruction::RegisterDump { x } => {
+                let x_val = self.evaluate_cpu_instr_target(&x);
+
+                // get starting address (I register)
+                let i_reg_val = self.registers.get_i_register().clone() as usize;
+
+                // dump registers to memory
+                for i in 0..=x_val {
+                    let vi_val = self.registers.get_v_register(i).clone();
+                    *self.memory.get_memory_at_mut(i + i_reg_val) = vi_val;
+                }
+            },
 
             // loads V0..Vx starting at address I
-            CPUInstruction::RegisterLoad { x } => todo!(),
+            CPUInstruction::RegisterLoad { x } => {
+                let x_val = self.evaluate_cpu_instr_target(&x);
+
+                // get starting address (I register)
+                let i_reg_val = self.registers.get_i_register().clone() as usize;
+
+                // load registers from memory
+                for i in 0..=x_val {
+                    let mem_val = self.memory.get_memory_at(i_reg_val + i).clone();
+                    *self.registers.get_v_register_mut(i) = mem_val;
+                }
+            },
 
             // unknown instruction
             CPUInstruction::Unknown { opcode } => todo!(),
@@ -371,7 +416,8 @@ impl super::Chip8 {
         let opcode = self.memory.get_memory_at_u16(pc);
         let instruction = Chip8::opcode_to_instruction(opcode);
 
-        println!("{opcode:4X}: {instruction:?}");
+
+        // println!("{opcode:4X}: {instruction:?}");
 
 
         // increase PC by 2 before executing next instruction as to not interfere with jumps

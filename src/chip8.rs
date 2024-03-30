@@ -35,6 +35,7 @@ impl Chip8 {
         };
 
         inst.memory.load_program_into_mem(program);
+        inst.memory.load_fonts_into_mem();
 
         inst
     }
