@@ -1,8 +1,18 @@
+use wasm_bindgen::prelude::*;
 mod chip8;
-use std::thread;
-use std::time;
 
-fn main() {
+#[wasm_bindgen]
+extern {
+    pub fn alert(s: &str);
+}
+
+#[wasm_bindgen]
+pub fn greet(name: &str) {
+    alert(&format!("Hello, {}!", name));
+}
+
+#[wasm_bindgen]
+pub fn test_c8(instr_count: usize) -> String {
     let program = include_bytes!("program.ch8");
     let mut program = Vec::from(program);
     if program.len() % 2 == 1 { program.push(0); }
@@ -15,14 +25,9 @@ fn main() {
 
     println!("{c8:?}");
 
-    loop {
-        for _ in 0..17 {
-            c8.execute_next_instruction();
-        }
-
-        print!("\x1B[2J\x1B[1;1H");
-        c8.output.print_display();
-
-        thread::sleep(time::Duration::from_millis(33));
+    for _ in 0..instr_count {
+        c8.execute_next_instruction();
     }
+    
+    c8.output.get_display_as_str()
 }

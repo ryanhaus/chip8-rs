@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>hello-wasm example</title>
+  </head>
+  <script type="module">
+    import init, { greet, test_c8 } from "../pkg/chip8_rs.js";
+    init().then(() => {
+      let display = test_c8(1000);
+
+      console.log(display);
+      document.getElementById("chip8-out").innerHTML = `<tt>${display.split("\n").join("<br/>")}</tt>`;
+    });
+  </script>
+  <body>
+    <h1>CHIP-8 Output:</h1>
+    <div id="chip8-out"></div>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-use super::sprites::Chip8Sprite;
+use super::{sprites::Chip8Sprite, Chip8};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Chip8Pixel {
@@ -58,14 +58,46 @@ impl Chip8Output {
         flipped_from_white
     }
 
-    // prints the display
-    pub fn print_display(&self) {
+    // returns the display immutably
+    pub fn get_display(&self) -> &[[Chip8Pixel; 64]; 32] {
+        &self.display
+    }
+
+    // turns a display of Chip8Pixel enums into an array of integers (0 = Black, 1 = White)
+    pub fn get_display_as_ints(&self) -> Vec<Vec<u8>> {
+        self.display.iter()
+            .map(|row| {
+                row.iter()
+                    .map(|&pixel| match pixel {
+                        Chip8Pixel::Black => 0,
+                        Chip8Pixel::White => 1,
+                    })         
+                    .collect::<Vec<_>>()       
+            }).collect::<Vec<_>>()
+    }
+
+    // turns a display of Chip8Pixel into a string representing the display
+    pub fn get_display_as_str(&self) -> String {
+        let mut s = String::new();
+        
         for pixel_row in &self.display {
             for &pixel in pixel_row {
-                print!("{}", if pixel == Chip8Pixel::White { "▓▓" } else { "▒▒" });
+                let char = match pixel {
+                    Chip8Pixel::White => "▓▓",
+                    Chip8Pixel::Black => "▒▒",
+                };
+
+                s.push_str(char);
             }
 
-            println!();
+            s.push('\n');
         }
+
+        s
+    }
+
+    // prints the display
+    pub fn print_display(&self) {
+        println!("{}", self.get_display_as_str());
     }
 }
