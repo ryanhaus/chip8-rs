@@ -4,20 +4,47 @@
     <meta charset="utf-8" />
     <title>hello-wasm example</title>
   </head>
+  
   <script type="module">
     import init, * as c8 from "../pkg/chip8_rs.js";
+
+    let active = false;
+
+    // handle instruction execution and display
     init().then(() => {
-      c8.load_program(c8.get_default_program());
+      // c8.load_program(c8.get_default_program());
       
       setInterval(() => {
-        c8.execute_instructions(500 / 30);
+        if (active) 
+          c8.execute_instructions(500 / 30);
         let display = c8.get_display_as_str();
 
         document.getElementById("chip8-out").innerHTML = `<tt>${display.split("\n").join("<br/>")}</tt>`;
       }, 1000 / 30);
     });
+
+    // handle program uploading
+    let program_file_select = document.getElementById("chip8_file_select");
+    
+    program_file_select.onchange = () => {
+        let reader = new FileReader;
+
+        reader.onload = (e) => {
+          let file_contents = new Uint8Array(e.target.result);
+          let program_bin = c8.program_8_to_16(file_contents);
+
+          c8.load_program(program_bin);
+          
+          active = true;
+        }
+
+        reader.readAsArrayBuffer(program_file_select.files[0]);
+    }
   </script>
+
   <body>
+    <h3>Select a CHIP-8 Program:</h3>
+    <input type="file" accept=".ch8,.c8" id="chip8_file_select" />
     <h1>CHIP-8 Output:</h1>
     <div id="chip8-out"></div>
   </body>

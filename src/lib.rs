@@ -18,6 +18,12 @@ extern {
 #[wasm_bindgen]
 pub fn get_default_program() -> Vec<u16> {
     let program = include_bytes!("program.ch8");
+
+    program_8_to_16(program)
+}
+
+#[wasm_bindgen]
+pub fn program_8_to_16(program: &[u8]) -> Vec<u16> {
     let mut program = Vec::from(program);
     if program.len() % 2 == 1 { program.push(0); }
     let program = program
