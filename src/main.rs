@@ -11,7 +11,7 @@ fn main() {
         .map(|x| ((x[0] as u16) << 8) + (x[1] as u16))
         .collect::<Vec<_>>();
 
-    let mut c8 = chip8::Chip8::new(&program);
+    let mut c8 = chip8::Chip8::new_with_program(&program);
 
     println!("{c8:?}");
 

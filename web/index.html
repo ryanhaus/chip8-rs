@@ -5,12 +5,16 @@
     <title>hello-wasm example</title>
   </head>
   <script type="module">
-    import init, { greet, test_c8 } from "../pkg/chip8_rs.js";
+    import init, * as c8 from "../pkg/chip8_rs.js";
     init().then(() => {
-      let display = test_c8(1000);
+      c8.load_program(c8.get_default_program());
+      
+      setInterval(() => {
+        c8.execute_instructions(500 / 30);
+        let display = c8.get_display_as_str();
 
-      console.log(display);
-      document.getElementById("chip8-out").innerHTML = `<tt>${display.split("\n").join("<br/>")}</tt>`;
+        document.getElementById("chip8-out").innerHTML = `<tt>${display.split("\n").join("<br/>")}</tt>`;
+      }, 1000 / 30);
     });
   </script>
   <body>

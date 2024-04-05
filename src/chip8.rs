@@ -25,14 +25,20 @@ pub struct Chip8 {
 }
 
 impl Chip8 {
-    pub fn new(program: &Vec<u16>) -> Chip8 {
-        let mut inst = Chip8 {
+    // new, blank chip8 instance
+    pub fn new() -> Chip8 {
+        Chip8 {
             memory: Chip8Memory::new(),
             registers: Chip8Registers::new(),
             timers: Chip8Timers::new(),
             output: Chip8Output::new(),
             input: Chip8Input::new(),
-        };
+        }
+    }
+
+    // new chip8 instance with pre-loaded program
+    pub fn new_with_program(program: &Vec<u16>) -> Chip8 {
+        let mut inst = Chip8::new();
 
         inst.memory.load_program_into_mem(program);
         inst.memory.load_fonts_into_mem();
