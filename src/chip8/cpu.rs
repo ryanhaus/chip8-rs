@@ -230,14 +230,23 @@ impl super::Chip8 {
         }
     }
 
-    // evaluates a CPUInstrTarget immutably
-    pub fn evaluate_cpu_instr_target(&self, target: &CPUInstrTarget) -> usize {
+    // evaluates a CPUInstrTarget immutably, but still requires mutable CPU instance
+    pub fn evaluate_cpu_instr_target(&mut self, target: &CPUInstrTarget) -> usize {
         match target {
             CPUInstrTarget::IRegister => self.registers.get_i_register().clone() as usize,
             CPUInstrTarget::VRegister(reg) => self.registers.get_v_register(*reg).clone() as usize,
             CPUInstrTarget::MemoryAddress(addr) => self.memory.get_memory_at(*addr).clone() as usize,
             CPUInstrTarget::Constant(val) => *val as usize,
-            CPUInstrTarget::CurrentKeyPressed => self.input.await_key_press(),
+            CPUInstrTarget::CurrentKeyPressed => {
+                let key_opt = self.input.get_current_key();
+
+                if let Some(key) = key_opt {
+                    key
+                } else {
+                    *self.registers.get_pc_register_mut() -= 2;
+                    0
+                }
+            },
             CPUInstrTarget::IsKeyInVRegPressed(reg) => if self.input.get_keys_status()[self.registers.get_v_register(*reg).clone() as usize] { 1 } else { 0 },
             CPUInstrTarget::CurrentDelayTimer => self.timers.get_delay().clone() as usize,
             CPUInstrTarget::CurrentSoundTimer => self.timers.get_sound().clone() as usize,

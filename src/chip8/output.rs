@@ -29,9 +29,9 @@ impl Chip8Output {
     }
 
     // toggles a pixel on the display, returns true if the pixel was flipped from white to black
-    pub fn toggle_pixel(&mut self, x: usize, y: usize) -> bool {
-        assert!(x < 64);
-        assert!(y < 32);
+    pub fn toggle_pixel(&mut self, mut x: usize, mut y: usize) -> bool {
+        x %= 64;
+        y %= 32;
 
         // store original pixel value
         let orig_pixel = self.display[y][x];

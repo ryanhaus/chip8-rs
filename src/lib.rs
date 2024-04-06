@@ -1,4 +1,5 @@
 extern crate console_error_panic_hook;
+extern crate wasm_log;
 use std::panic;
 use wasm_bindgen::prelude::*;
 use std::sync::Mutex;
@@ -20,6 +21,7 @@ extern {
 #[wasm_bindgen]
 pub fn init_debug() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
+    wasm_log::init(wasm_log::Config::default());
 }
 
 #[wasm_bindgen]
@@ -27,6 +29,13 @@ pub fn reset_inst() {
     let mut c8 = CHIP8_INSTANCE.lock().unwrap();
 
     *c8 = chip8::Chip8::new();
+}
+
+#[wasm_bindgen]
+pub fn reset_pc() {
+    let mut c8 = CHIP8_INSTANCE.lock().unwrap();
+
+    *c8.registers.get_pc_register_mut() = 0x200;
 }
 
 #[wasm_bindgen]
@@ -84,11 +93,20 @@ pub fn get_display_as_ints() -> Vec<u8> {
 pub fn update_keys_status(keys_status: &[usize]) {
     let mut c8 = CHIP8_INSTANCE.lock().unwrap();
 
-    let mut keys_status_c8 = c8.input.get_keys_status_mut();
+    let keys_status_c8 = c8.input.get_keys_status_mut();
 
     for (i, &key) in keys_status.iter().enumerate() {
         let key_bool = if key == 1 { true } else { false };
 
         keys_status_c8[i] = key_bool;
     }
+}
+
+#[wasm_bindgen]
+pub fn timer_tick_and_get_sound() -> bool {
+    let mut c8 = CHIP8_INSTANCE.lock().unwrap();
+
+    c8.timers.timer_tick();
+
+    *c8.timers.get_sound() > 0
 }

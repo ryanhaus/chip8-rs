@@ -1,6 +1,6 @@
 #[derive(Debug)]
 pub struct Chip8Input {
-    keys_status: [bool; 16], // the status of every key, in order of 123C456D789EA0BF
+    keys_status: [bool; 16], // the status of every key, in order of 0123456789ABCDEF
 }
 
 impl Chip8Input {
@@ -28,12 +28,5 @@ impl Chip8Input {
             .filter(|(i, x)| **x == true)
             .map(|(i, x)| i)
             .next()
-    }
-
-    // awaits a keypress (until get_current_key != None) and returns the index of the key in the keys_status array
-    pub fn await_key_press(&self) -> usize {
-        while self.get_current_key() == None {}
-
-        self.get_current_key().unwrap()
     }
 }
