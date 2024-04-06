@@ -14,5 +14,6 @@ name = "chip8-rs"
 path = "src/main.rs"
 
 [dependencies]
+console_error_panic_hook = "0.1.7"
 lazy_static = "1.4.0"
 wasm-bindgen = "0.2.92"

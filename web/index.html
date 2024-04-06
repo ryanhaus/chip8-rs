@@ -3,6 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <title>hello-wasm example</title>
+
+    <style>
+      #chip8-out {
+        border: 10px solid #cacaca;
+        image-rendering: pixelated;
+
+        width: 640px;
+        height: 320px;
+      }
+    </style>
   </head>
   
   <script type="module">
@@ -12,14 +22,29 @@
 
     // handle instruction execution and display
     init().then(() => {
-      // c8.load_program(c8.get_default_program());
+      c8.init_debug();
       
       setInterval(() => {
         if (active) 
           c8.execute_instructions(500 / 30);
-        let display = c8.get_display_as_str();
 
-        document.getElementById("chip8-out").innerHTML = `<tt>${display.split("\n").join("<br/>")}</tt>`;
+        let display_value = c8.get_display_as_ints();
+
+        let canvas = document.getElementById("chip8-out");
+        let ctx = canvas.getContext("2d");
+
+        let rectangle_width = canvas.width / 64;
+        let rectangle_height = canvas.height / 32;
+
+        for (let y = 0; y < 32; y++) {
+          for (let x = 0; x < 64; x++) {
+            let i = x + y * 64;
+            let pixel = display_value[i];
+
+            ctx.fillStyle = pixel ? "white" : "black";
+            ctx.fillRect(rectangle_width * x, rectangle_height * y, rectangle_width, rectangle_height);
+          }
+        }
       }, 1000 / 30);
     });
 
@@ -33,6 +58,7 @@
           let file_contents = new Uint8Array(e.target.result);
           let program_bin = c8.program_8_to_16(file_contents);
 
+          c8.reset_inst();
           c8.load_program(program_bin);
           
           active = true;
@@ -46,6 +72,6 @@
     <h3>Select a CHIP-8 Program:</h3>
     <input type="file" accept=".ch8,.c8" id="chip8_file_select" />
     <h1>CHIP-8 Output:</h1>
-    <div id="chip8-out"></div>
+    <canvas id="chip8-out" width="64" height="32"></canvas>
   </body>
 </html>

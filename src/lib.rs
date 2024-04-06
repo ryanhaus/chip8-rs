@@ -1,3 +1,5 @@
+extern crate console_error_panic_hook;
+use std::panic;
 use wasm_bindgen::prelude::*;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
@@ -13,6 +15,18 @@ lazy_static! {
 #[wasm_bindgen]
 extern {
     pub fn alert(s: &str);
+}
+
+#[wasm_bindgen]
+pub fn init_debug() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
+}
+
+#[wasm_bindgen]
+pub fn reset_inst() {
+    let mut c8 = CHIP8_INSTANCE.lock().unwrap();
+
+    *c8 = chip8::Chip8::new();
 }
 
 #[wasm_bindgen]
@@ -57,4 +71,11 @@ pub fn get_display_as_str() -> String {
     let c8 = CHIP8_INSTANCE.lock().unwrap();
 
     c8.output.get_display_as_str()
+}
+
+#[wasm_bindgen]
+pub fn get_display_as_ints() -> Vec<u8> {
+    let c8 = CHIP8_INSTANCE.lock().unwrap();
+
+    c8.output.get_display_as_ints().concat()
 }
