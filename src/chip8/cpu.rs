@@ -1,22 +1,25 @@
 use super::Chip8;
 use super::sprites::Chip8Sprite;
+use rand::prelude::*;
 
 // "targets" of a CPU instruction. can be read from for an operation or written to
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum CPUInstrTarget {
     IRegister,
     VRegister(usize),
     MemoryAddress(usize),
     Constant(u16),
+    IsKeyInVRegPressed(usize),
     CurrentKeyPressed,
     CurrentDelayTimer,
     CurrentSoundTimer,
     SpriteAddress(usize),
     RandomNum(u8),
+    True,
 }
 
 // all possible ALU operations
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ALUOperations {
     Assign,
     Add { update_vf: bool },
@@ -163,8 +166,8 @@ impl super::Chip8 {
             // 0xEXNN: if NN = 9E, skips next instr if key pressed == Vx, if NN = A1, skips next instr if key pressed != Vx
             0xE => CPUInstruction::CompareEq {
                 eq: (instruction_operands & 0xFF) == 0x9E,
-                left: CPUInstrTarget::CurrentKeyPressed,
-                right: CPUInstrTarget::VRegister(instruction_operands_list[0] as usize),
+                left: CPUInstrTarget::IsKeyInVRegPressed(instruction_operands_list[0] as usize),
+                right: CPUInstrTarget::True,
             },
 
             // 0xFXNN: various
@@ -234,11 +237,13 @@ impl super::Chip8 {
             CPUInstrTarget::VRegister(reg) => self.registers.get_v_register(*reg).clone() as usize,
             CPUInstrTarget::MemoryAddress(addr) => self.memory.get_memory_at(*addr).clone() as usize,
             CPUInstrTarget::Constant(val) => *val as usize,
-            CPUInstrTarget::CurrentKeyPressed => todo!(),
-            CPUInstrTarget::CurrentDelayTimer => todo!(),
-            CPUInstrTarget::CurrentSoundTimer => todo!(),
+            CPUInstrTarget::CurrentKeyPressed => self.input.await_key_press(),
+            CPUInstrTarget::IsKeyInVRegPressed(reg) => if self.input.get_keys_status()[self.registers.get_v_register(*reg).clone() as usize] { 1 } else { 0 },
+            CPUInstrTarget::CurrentDelayTimer => self.timers.get_delay().clone() as usize,
+            CPUInstrTarget::CurrentSoundTimer => self.timers.get_sound().clone() as usize,
             CPUInstrTarget::SpriteAddress(sprite) => (self.registers.get_v_register(*sprite).clone() as usize * 5),
-            CPUInstrTarget::RandomNum(mask) => todo!(),
+            CPUInstrTarget::RandomNum(mask) => (rand::random::<u8>() & mask) as usize,
+            CPUInstrTarget::True => 1,
         }
     }
 
@@ -248,10 +253,10 @@ impl super::Chip8 {
             CPUInstrTarget::IRegister => *self.registers.get_i_register_mut() = (val as u16),
             CPUInstrTarget::VRegister(reg) => *self.registers.get_v_register_mut(reg) = (val as u8),
             CPUInstrTarget::MemoryAddress(addr) => *self.memory.get_memory_at_mut(addr) = (val as u8),
-            CPUInstrTarget::CurrentDelayTimer => todo!(),
-            CPUInstrTarget::CurrentSoundTimer => todo!(),
+            CPUInstrTarget::CurrentDelayTimer => *self.timers.get_delay_mut() = (val as u8),
+            CPUInstrTarget::CurrentSoundTimer => *self.timers.get_sound_mut() = (val as u8),
 
-            _ => todo!(),
+            _ => panic!("Attempted to assign {val} to an immutable value: {target:?}"),
         }
     }
 
@@ -259,7 +264,7 @@ impl super::Chip8 {
     fn execute_instruction(&mut self, instr: CPUInstruction) {
         match instr {
             // calls machine code at given address
-            CPUInstruction::CallMachineCode { addr } => todo!(),
+            CPUInstruction::CallMachineCode { addr } => panic!("Machine code operations are not supported. Panicked at: {instr:?}"),
 
             // clear display
             CPUInstruction::ClearDisplay => self.output.clear_display(),
@@ -318,7 +323,7 @@ impl super::Chip8 {
                     ALUOperations::Xor => (left_val ^ right_val, false, false),
                     ALUOperations::ShiftRight { update_vf } => (left_val >> 1, update_vf, (left_val & 1) == 1),
                     ALUOperations::ShiftLeft { update_vf } => (left_val << 1, update_vf, (left_val & 0x80) > 0),
-                    ALUOperations::Unknown => todo!(),
+                    ALUOperations::Unknown => panic!("Unknown ALU operation, panicked at instruction: {instr:?}"),
                 };
 
                 while result < 0 {
@@ -405,7 +410,7 @@ impl super::Chip8 {
             },
 
             // unknown instruction
-            CPUInstruction::Unknown { opcode } => todo!(),
+            CPUInstruction::Unknown { opcode } => panic!("Unknown instruction: {opcode:4X}."),
         }
     }
 

@@ -79,3 +79,16 @@ pub fn get_display_as_ints() -> Vec<u8> {
 
     c8.output.get_display_as_ints().concat()
 }
+
+#[wasm_bindgen]
+pub fn update_keys_status(keys_status: &[usize]) {
+    let mut c8 = CHIP8_INSTANCE.lock().unwrap();
+
+    let mut keys_status_c8 = c8.input.get_keys_status_mut();
+
+    for (i, &key) in keys_status.iter().enumerate() {
+        let key_bool = if key == 1 { true } else { false };
+
+        keys_status_c8[i] = key_bool;
+    }
+}
