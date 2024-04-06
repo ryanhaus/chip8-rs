@@ -29,6 +29,7 @@ pub fn reset_inst() {
     let mut c8 = CHIP8_INSTANCE.lock().unwrap();
 
     *c8 = chip8::Chip8::new();
+    c8.memory.load_fonts_into_mem();
 }
 
 #[wasm_bindgen]
